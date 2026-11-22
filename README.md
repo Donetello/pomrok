@@ -29,4 +29,18 @@ Edit `config/world.toml` to change classes and encounters. The API keeps Telegra
 
 ## Local development
 
-Use Node.js 24 and run `npm ci`. Run `npm run dev:api` and `npm run dev` in separate terminals. The defaults are port 3001 for the game server and 3000 for the practice ground. Run `npm run check` and `npm test` to verify the game.
+Use Node.js 24 and run `npm ci`. Run `npm run dev:api` and `npm run dev` in separate terminals. The defaults are port 3001 for the game server and 3000 for the practice ground.
+
+| Command | What it checks |
+| --- | --- |
+| `npm run lint` | ESLint with TypeScript, Next.js, and React Hooks rules |
+| `npm run check` | TypeScript |
+| `npm test` | Vitest combat, API, Telegram, and TOML persistence tests |
+| `npm run test:coverage` | Vitest with V8 coverage and `coverage/lcov.info` for SonarQube |
+| `npm run build` | Next.js production build |
+
+## SonarQube
+
+Create a project with the key `pomrok` in SonarQube. Set `SONAR_HOST_URL` to the instance URL and `SONAR_TOKEN` to a token with Execute Analysis permission in your environment. Run `npm run test:coverage` before `npm run sonar` so the scan can import the LCOV report.
+
+GitHub Actions runs linting, type checking, tests with coverage, and the production build for every pull request and push to `main`. To enable the SonarQube scan and quality gate on `main`, configure the `SONAR_HOST_URL` repository variable and the `SONAR_TOKEN` repository secret. The SonarQube instance must be reachable from the GitHub Actions runner.
