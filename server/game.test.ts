@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import test from "node:test";
+import { test } from "vitest";
 import { createApi } from "./api.ts";
 import { fight, MarbleBox } from "./combat.ts";
 import { TomlStore } from "./store.ts";
@@ -31,9 +31,9 @@ test("either combatant can suffer a wound condition when crossing half health", 
   assert.ok(result.rounds <= 24);
 });
 
-test("the Fastify practice endpoint resolves encounters for both modes", async (t) => {
+test("the Fastify practice endpoint resolves encounters for both modes", async ({ onTestFinished }) => {
   const api = createApi(world);
-  t.after(() => api.close());
+  onTestFinished(() => api.close());
   for (const mode of ["dungeon", "bot"] as const) {
     const encounter = world[mode][0];
     const response = await api.inject({
@@ -57,9 +57,9 @@ test("the Fastify practice endpoint resolves encounters for both modes", async (
   })).statusCode, 404);
 });
 
-test("a player challenge survives a restart and only the recipient can resolve it once", async (t) => {
+test("a player challenge survives a restart and only the recipient can resolve it once", async ({ onTestFinished }) => {
   const dir = await mkdtemp(join(tmpdir(), "pomrok-"));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  onTestFinished(() => rm(dir, { recursive: true, force: true }));
   const store = new TomlStore(dir);
   await store.load();
   const state = store.snapshot();
@@ -93,14 +93,14 @@ test("a player challenge survives a restart and only the recipient can resolve i
   assert.deepEqual(store.snapshot(), saved);
 });
 
-test("Telegram polling applies an update once and delivers its queued response", async (t) => {
+test("Telegram polling applies an update once and delivers its queued response", async ({ onTestFinished }) => {
   const dir = await mkdtemp(join(tmpdir(), "pomrok-"));
-  t.after(() => rm(dir, { recursive: true, force: true }));
+  onTestFinished(() => rm(dir, { recursive: true, force: true }));
   const store = new TomlStore(dir);
   await store.load();
   const controller = new AbortController();
   const api = createApi(world);
-  t.after(() => api.close());
+  onTestFinished(() => api.close());
   const sent: object[] = [];
   const update = {
     update_id: 42,
