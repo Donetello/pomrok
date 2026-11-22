@@ -1,0 +1,29 @@
+{
+  "name": "pomrok",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "dev": "next dev",
+    "dev:api": "node --env-file-if-exists=.env --watch server/main.ts",
+    "build": "next build",
+    "start": "next start",
+    "start:api": "node --env-file-if-exists=.env server/main.ts",
+    "check": "tsc --noEmit",
+    "test": "node --test server/*.test.ts"
+  },
+  "dependencies": {
+    "fastify": "^5.12.7",
+    "next": "^16.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "smol-toml": "^1.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "typescript": "^5.9.3"
+  }
+}

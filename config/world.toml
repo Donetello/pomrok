@@ -1,0 +1,107 @@
+[[heroes]]
+id = "vanguard"
+name = "Vanguard"
+description = "Heavy armour and steady strikes."
+mark = "shield"
+hp = 43
+attack = 9
+armor = 3
+speed = 2
+
+[[heroes]]
+id = "duelist"
+name = "Duelist"
+description = "Quick blades and a strong opening."
+mark = "swords"
+hp = 35
+attack = 10
+armor = 2
+speed = 5
+
+[[heroes]]
+id = "hexblade"
+name = "Hexblade"
+description = "Devastating hits from a fragile front line."
+mark = "flame"
+hp = 37
+attack = 12
+armor = 1
+speed = 3
+
+[[dungeon]]
+id = "crypt"
+name = "The Hollow Crypt"
+description = "Beneath the ruined chapel, a restless oath keeps the dead on watch."
+difficulty = "Easy"
+mark = "skull"
+[dungeon.opponent]
+name = "Crypt Warden"
+hp = 29
+attack = 8
+armor = 2
+speed = 2
+
+[[dungeon]]
+id = "fen"
+name = "The Lantern Fen"
+description = "Follow the lights past the reeds, where a hungry beast stalks the causeway."
+difficulty = "Standard"
+mark = "moon"
+[dungeon.opponent]
+name = "Fen Stalker"
+hp = 39
+attack = 10
+armor = 2
+speed = 4
+
+[[dungeon]]
+id = "keep"
+name = "The Ashen Keep"
+description = "Beyond the burned gates, the last sentinel guards a throne of cinders."
+difficulty = "Hard"
+mark = "flame"
+[dungeon.opponent]
+name = "Cinder Sentinel"
+hp = 49
+attack = 11
+armor = 3
+speed = 2
+
+[[bot]]
+id = "rook"
+name = "Rook"
+description = "A defensive sparring partner who outlasts careless challengers."
+difficulty = "Easy"
+mark = "shield"
+[bot.opponent]
+name = "Rook"
+hp = 39
+attack = 8
+armor = 3
+speed = 2
+
+[[bot]]
+id = "vesper"
+name = "Vesper"
+description = "A swift arena regular who sets the pace from the opening blow."
+difficulty = "Standard"
+mark = "swords"
+[bot.opponent]
+name = "Vesper"
+hp = 36
+attack = 11
+armor = 2
+speed = 5
+
+[[bot]]
+id = "ember"
+name = "Ember"
+description = "A relentless opponent who turns the smallest opening into a heavy strike."
+difficulty = "Hard"
+mark = "flame"
+[bot.opponent]
+name = "Ember"
+hp = 44
+attack = 12
+armor = 3
+speed = 3
