@@ -3,13 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "next dev",
     "dev:api": "node --env-file-if-exists=.env --watch server/main.ts",
     "build": "next build",
     "start": "next start",
     "start:api": "node --env-file-if-exists=.env server/main.ts",
+    "lint": "eslint . --max-warnings=0",
     "check": "tsc --noEmit",
     "test": "node --test server/*.test.ts"
   },
@@ -21,9 +24,14 @@
     "smol-toml": "^1.9.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10",
+    "@next/eslint-plugin-next": "16.4.6",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
-    "typescript": "^5.9.3"
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.73.0"
   }
 }
