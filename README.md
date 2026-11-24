@@ -1,46 +1,46 @@
-# Pomrok
+# Помрок
 
-Pomrok is a Telegram auto-battler written in TypeScript with a Fastify game server and a Next.js browser practice ground. Enter dungeons to fight creatures, spar against arena bots, or challenge another Telegram player.
+Темрява прихопила світанок, а громада з Чорногори взялася його повертати. У лісі чекають упир-дзвонар, мавка-митарка й пан Помрок із брамою та трьома печатками. На сільському майдані можна битися з ботами або викликати на двобій іншого гравця.
 
-## Run with Docker
+«Помрок» — гра для Telegram на TypeScript і Fastify. У браузері є майданчик Next.js для тренувань. Обидва використовують спільні пригоди, правила й літопис бою українською.
 
-1. To enable Telegram, copy `.env.example` to `.env` and set `TELEGRAM_BOT_TOKEN` using a token from [BotFather](https://t.me/BotFather).
-2. Run `docker compose up --build -d`.
-3. Open [the practice ground](http://localhost:3000) or send `/start` in a private chat with your bot.
+## Запуск через Docker
 
-The browser practice ground works with an empty token. It uses the same fight engine for dungeon and bot matches. Telegram handles player duels and saves fight records. If port 3000 is in use, set `WEB_PORT` in `.env` and open that port instead. If reusing a Telegram bot that previously used a webhook, remove that webhook before running Pomrok so it can receive updates by long polling.
+1. Скопіюй `.env.example` у `.env`. Для Telegram задай `TELEGRAM_BOT_TOKEN` токеном від [BotFather](https://t.me/BotFather).
+2. Виконай `docker compose up --build -d`. Щоб запустити лише Telegram-бота, виконай `docker compose up --build -d api`.
+3. Напиши боту `/start` в особистому чаті або відкрий [майданчик у браузері](http://localhost:3000). Якщо порт 3000 зайнятий, задай `WEB_PORT` у `.env`.
 
-| Telegram command | Action |
+Без токена працюють браузерні тренування. Бот опитує Telegram через вихідні HTTPS-запити. Для нього не потрібні домен, вебхук чи вхідний HTTP-порт. Якщо бот раніше працював через вебхук, вимкни його перед запуском довгого опитування.
+
+| Команда | Дія |
 | --- | --- |
-| `/start` | Open the game menu |
-| `/hero` | Choose a Vanguard, Duelist, or Hexblade |
-| `/dungeon` | Choose a dungeon creature |
-| `/arena` | Fight an arena bot or get the player duel command |
-| `/challenge @username` | Invite another registered player |
-| `/profile` | See your record and most recent fight |
+| `/start` | Зайти до корчми й відкрити меню |
+| `/story` | Дізнатися, куди подівся світанок |
+| `/hero` | Обрати Щитника, Легіня або Мольфара |
+| `/dungeon` | Обрати лісову пригоду |
+| `/arena` | Битися з ботом або дізнатися, як викликати гравця |
+| `/challenge @username` | Викликати іншого гравця |
+| `/profile` | Переглянути рахунок і останній бій |
+| `/help` | Прочитати правила бою |
 
-Both players must open the bot before a duel. The invited player can accept or decline within 24 hours. A fight starts automatically upon acceptance and both players get the summary.
+Обидва гравці мають спочатку відкрити бота. Запрошений гравець має 24 години, щоб прийняти або відхилити виклик. Після згоди бот проводить бій і надсилає підсумок обом учасникам.
 
-## Combat and storage
+## Бої та збереження
 
-Each fighter starts at full health. Speed determines who acts first, with a D6 draw breaking a tie. The shared marble box holds one of each D6 face. A draw removes a face, and the next draw after the box is emptied refills it. An attack draw of 1 misses and a 6 adds critical damage. The first time a fighter survives damage at or below half health, a second draw can cause bleeding or weaken the next two attacks. A knockout ends the fight. A fight still running after 24 rounds is a draw. Telegram shows a short result with a button for the round log.
+Швидший боєць ходить першим. У скриньці по одній кульці з числами від 1 до 6. Витягнуті кульки повертають після спорожніння скриньки. Одиниця означає промах, шістка — критичний удар. Перше поранення до половини здоров’я або нижче може спричинити кровотечу чи слабкість. Після 24 раундів без переможця оголошується нічия.
 
-Edit `config/world.toml` to change classes and encounters. The API keeps Telegram players, pending challenges, latest fights, and queued messages in `state.toml` in the `game-data` Docker volume. Run one API replica per volume and bot token. Keep the volume to preserve player state across container replacements.
+Пролог, герої, зустрічі та їхні кінцівки зберігаються у `config/world.toml`. Рахунок гравців, виклики, літописи й черга повідомлень зберігаються в `state.toml` у томі Docker `game-data`. Зберігай том під час оновлень контейнера.
 
-## Local development
+## Розробка
 
-Use Node.js 24 and run `npm ci`. Run `npm run dev:api` and `npm run dev` in separate terminals. The defaults are port 3001 for the game server and 3000 for the practice ground.
+Встанови Node.js 24 і виконай `npm ci`. Запускай `npm run dev:api` та `npm run dev` в окремих терміналах. Типові порти API й браузерного майданчика — 3001 і 3000.
 
-| Command | What it checks |
+| Команда | Дія |
 | --- | --- |
-| `npm run lint` | ESLint with TypeScript, Next.js, and React Hooks rules |
-| `npm run check` | TypeScript |
-| `npm test` | Vitest combat, API, Telegram, and TOML persistence tests |
-| `npm run test:coverage` | Vitest with V8 coverage and `coverage/lcov.info` for SonarQube |
-| `npm run build` | Next.js production build |
+| `npm run lint` | ESLint для TypeScript, Next.js і React Hooks |
+| `npm run check` | Перевірка типів |
+| `npm test` | Vitest |
+| `npm run test:coverage` | Покриття V8 та звіт `coverage/lcov.info` |
+| `npm run build` | Збірка Next.js |
 
-## SonarQube
-
-Create a project with the key `pomrok` in SonarQube. Set `SONAR_HOST_URL` to the instance URL and `SONAR_TOKEN` to a token with Execute Analysis permission in your environment. Run `npm run test:coverage` before `npm run sonar` so the scan can import the LCOV report.
-
-GitHub Actions runs linting, type checking, tests with coverage, and the production build for every pull request and push to `main`. To enable the SonarQube scan and quality gate on `main`, configure the `SONAR_HOST_URL` repository variable and the `SONAR_TOKEN` repository secret. The SonarQube instance must be reachable from the GitHub Actions runner.
+Для SonarQube створи проєкт із ключем `pomrok`, задай `SONAR_HOST_URL` і `SONAR_TOKEN` та виконай `npm run test:coverage` і `npm run sonar`. Щоб увімкнути перевірку SonarQube після змін у `main`, задай змінну репозиторію `SONAR_HOST_URL` і секрет `SONAR_TOKEN`.

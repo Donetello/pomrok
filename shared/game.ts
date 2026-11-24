@@ -7,6 +7,7 @@ export type Fighter = {
 };
 
 export type Hero = Fighter & { id: string; description: string; mark: string };
+export type Story = { title: string; hook: string; prologue: string[] };
 export type Encounter = {
   id: string;
   name: string;
@@ -14,10 +15,12 @@ export type Encounter = {
   difficulty: string;
   mark: string;
   opponent: Fighter;
+  victory: string;
+  defeat: string;
 };
 
 export type Mode = "dungeon" | "bot";
-export type World = { heroes: Hero[]; dungeon: Encounter[]; bot: Encounter[] };
+export type World = { story: Story; heroes: Hero[]; dungeon: Encounter[]; bot: Encounter[] };
 export type Side = "left" | "right";
 export type Step = {
   round: number;
@@ -33,6 +36,7 @@ export type Fight = {
   rounds: number;
   steps: Step[];
   summary: string;
+  aftermath?: string;
 };
 
 export type Catalog = World & { telegramUrl?: string };

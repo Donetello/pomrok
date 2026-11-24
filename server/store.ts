@@ -12,7 +12,7 @@ export type Player = {
   wins: number;
   losses: number;
   draws: number;
-  lastFight?: { id: string; summary: string; pages: string[] };
+  lastFight?: { id: string; language?: "uk"; summary: string; pages: string[] };
 };
 export type Challenge = { id: string; from: number; to: number; expires: number };
 export type State = {

@@ -24,6 +24,7 @@ ENV NODE_ENV=production API_PORT=3001 DATA_DIR=/app/data
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && install -d -o node -g node /app/data
 COPY --chown=node:node server ./server
+COPY --chown=node:node shared ./shared
 COPY --chown=node:node config ./config
 USER node
 EXPOSE 3001

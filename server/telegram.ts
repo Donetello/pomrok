@@ -62,13 +62,14 @@ export async function runTelegram(
         const identity = await call<{ username: string }>("getMe");
         setUsername(identity.username);
         await call("setMyCommands", { commands: [
-          { command: "start", description: "Open Pomrok" },
-          { command: "dungeon", description: "Enter a dungeon" },
-          { command: "arena", description: "Choose an arena opponent" },
-          { command: "challenge", description: "Challenge a player by @username" },
-          { command: "hero", description: "Choose your hero" },
-          { command: "profile", description: "View your record and latest fight" },
-          { command: "help", description: "Read the combat rules" },
+          { command: "start", description: "Зайти до корчми" },
+          { command: "story", description: "Дізнатися, куди подівся світанок" },
+          { command: "dungeon", description: "Рушити в лісову пригоду" },
+          { command: "arena", description: "Обрати суперника для двобою" },
+          { command: "challenge", description: "Викликати гравця за іменем @username" },
+          { command: "hero", description: "Обрати героя" },
+          { command: "profile", description: "Відкрити свій літопис" },
+          { command: "help", description: "Прочитати правила бою" },
         ] });
         configured = true;
         logger.info("Telegram bot is ready");
