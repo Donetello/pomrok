@@ -2,9 +2,16 @@ import Fastify from "fastify";
 import type { Catalog, PracticeRequest, World } from "../shared/game.ts";
 import { fightEncounter } from "./combat.ts";
 
-export function createApi(world: World, telegramUrl: () => string | undefined = () => undefined) {
+export function createApi(
+  world: World,
+  telegramUrl: () => string | undefined = () => undefined,
+  isReady: () => boolean = () => true,
+) {
   const app = Fastify({ logger: true, bodyLimit: 4096 });
-  app.get("/health", () => ({ ok: true }));
+  app.get("/health", (_, reply) => {
+    const ok = isReady();
+    return reply.code(ok ? 200 : 503).send({ ok });
+  });
   app.get("/catalog", (): Catalog => ({ ...world, telegramUrl: telegramUrl() }));
   app.post<{ Body: PracticeRequest }>("/practice", {
     schema: {

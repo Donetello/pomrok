@@ -7,7 +7,7 @@ import { createApi } from "./api.ts";
 import { fight, MarbleBox } from "./combat.ts";
 import { TomlStore, type State } from "./store.ts";
 import { handleGameInput } from "./telegram-game.ts";
-import { runTelegram } from "./telegram.ts";
+import { readBotToken, runTelegram, telegramClient, verifyPollingBot } from "./telegram.ts";
 import { loadWorld } from "./world.ts";
 
 const world = await loadWorld("config/world.toml");
@@ -123,6 +123,33 @@ test("Telegram shows the shared prologue, an encounter preview, and the localize
   assert.match(state.outbox.at(-1)?.text ?? "", /Літопис бою[\s\S]*Раунд 1/);
 });
 
+test("the Docker health route waits for the bot when polling is enabled", async ({ onTestFinished }) => {
+  let polling = false;
+  const api = createApi(world, undefined, () => polling);
+  onTestFinished(() => api.close());
+  assert.equal((await api.inject("/health")).statusCode, 503);
+  polling = true;
+  assert.equal((await api.inject("/health")).statusCode, 200);
+});
+
+test("the Actions key takes precedence and Telegram preflight checks webhooks without polling", async () => {
+  const token = readBotToken({ POMROK_BOT_KEY: " 123:fake ", TELEGRAM_BOT_TOKEN: "456:legacy" });
+  assert.equal(token, "123:fake");
+  assert.equal(readBotToken({ POMROK_BOT_KEY: " ", TELEGRAM_BOT_TOKEN: "456:legacy" }), "456:legacy");
+  const methods: string[] = [];
+  let webhookUrl = "";
+  const call = telegramClient(token, new AbortController().signal, async (input) => {
+    const method = new URL(input.toString()).pathname.split("/").at(-1) ?? "";
+    methods.push(method);
+    const result = method === "getMe" ? { is_bot: true, username: "test_bot" } : { url: webhookUrl };
+    return Response.json({ ok: true, result });
+  });
+  assert.equal(await verifyPollingBot(call), "test_bot");
+  assert.deepEqual(methods, ["getMe", "getWebhookInfo"]);
+  webhookUrl = "https://example.test/telegram";
+  await assert.rejects(verifyPollingBot(call), /вебхук/);
+});
+
 test("Telegram polling applies an update once and delivers its queued response", async ({ onTestFinished }) => {
   const dir = await mkdtemp(join(tmpdir(), "pomrok-"));
   onTestFinished(() => rm(dir, { recursive: true, force: true }));
@@ -144,7 +171,8 @@ test("Telegram polling applies an update once and delivers its queued response",
   let polls = 0;
   let acknowledged = 0;
   const call = async <T>(method: string, body?: object): Promise<T> => {
-    if (method === "getMe") return { username: "pomrok_test_bot" } as T;
+    if (method === "getMe") return { is_bot: true, username: "pomrok_test_bot" } as T;
+    if (method === "getWebhookInfo") return { url: "" } as T;
     if (method === "setMyCommands") assert.match(JSON.stringify(body), /Дізнатися, куди подівся світанок/);
     if (method === "sendMessage") sent.push(body ?? {});
     if (method === "answerCallbackQuery") acknowledged++;
@@ -159,9 +187,14 @@ test("Telegram polling applies an update once and delivers its queued response",
     return true as T;
   };
   let username = "";
-  await runTelegram(call, store, world, api.log, controller.signal, (value) => { username = value; });
+  const polling: boolean[] = [];
+  await runTelegram(call, store, world, api.log, controller.signal, {
+    onUsername: (value) => { username = value; },
+    onPolling: (ready) => polling.push(ready),
+  });
   const state = store.snapshot();
   assert.equal(username, "pomrok_test_bot");
+  assert.ok(polling.includes(true));
   assert.equal(acknowledged, 2);
   assert.equal(sent.length, 1);
   assert.equal(state.lastUpdateId, 42);
