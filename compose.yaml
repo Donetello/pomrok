@@ -6,6 +6,7 @@ services:
     init: true
     restart: unless-stopped
     environment:
+      POMROK_BOT_KEY: ${POMROK_BOT_KEY:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
     volumes:

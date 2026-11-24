@@ -1,10 +1,17 @@
 import Fastify from "fastify";
 import type { Catalog, PracticeRequest, World } from "../shared/game.ts";
-import { fight } from "./combat.ts";
+import { fightEncounter } from "./combat.ts";
 
-export function createApi(world: World, telegramUrl: () => string | undefined = () => undefined) {
+export function createApi(
+  world: World,
+  telegramUrl: () => string | undefined = () => undefined,
+  isReady: () => boolean = () => true,
+) {
   const app = Fastify({ logger: true, bodyLimit: 4096 });
-  app.get("/health", () => ({ ok: true }));
+  app.get("/health", (_, reply) => {
+    const ok = isReady();
+    return reply.code(ok ? 200 : 503).send({ ok });
+  });
   app.get("/catalog", (): Catalog => ({ ...world, telegramUrl: telegramUrl() }));
   app.post<{ Body: PracticeRequest }>("/practice", {
     schema: {
@@ -22,8 +29,8 @@ export function createApi(world: World, telegramUrl: () => string | undefined = 
   }, async ({ body }, reply) => {
     const hero = world.heroes.find(({ id }) => id === body.heroId);
     const encounter = world[body.mode].find(({ id }) => id === body.encounterId);
-    if (!hero || !encounter) return reply.code(404).send({ message: "Hero or encounter unavailable." });
-    return fight(hero, encounter.opponent);
+    if (!hero || !encounter) return reply.code(404).send({ message: "Ця зустріч або цей герой недоступні." });
+    return fightEncounter(hero, encounter);
   });
   return app;
 }

@@ -1,28 +1,31 @@
 import { randomUUID } from "node:crypto";
 import type { Fight, Mode, World } from "../shared/game.ts";
-import { fight } from "./combat.ts";
+import { combatRules, roundLabel } from "../shared/uk.ts";
+import { fight, fightEncounter } from "./combat.ts";
 import type { Button, Player, State } from "./store.ts";
 
 export type TelegramUser = { id: number; first_name: string; username?: string };
 export type GameInput = { user: TelegramUser; chatId: number; command?: string; callback?: string };
 
 const button = (text: string, callback_data: string): Button => ({ text, callback_data });
+const home = button("До корчми", "menu:home");
 const menu = [
-  [button("Dungeons", "menu:dungeon"), button("Arena", "menu:arena")],
-  [button("Choose hero", "menu:hero"), button("Profile", "menu:profile")],
+  [button("Лісові пригоди", "menu:dungeon"), button("Двобої", "menu:arena")],
+  [button("Обрати героя", "menu:hero"), button("Мій літопис", "menu:profile")],
+  [button("Куди подівся світанок", "menu:story")],
 ];
 const label = (player: Player) => player.username ? `@${player.username}` : player.name;
 
 function fightPages(result: Fight): string[] {
   const pages: string[] = [];
   let page = "";
-  let previousRound = 0;
+  let previousRound = -1;
   for (const step of result.steps) {
-    const heading = step.round !== previousRound ? `\nRound ${step.round}\n` : "";
-    const line = `${step.text}${step.roll === undefined ? "" : ` [D6 ${step.roll}]`}\n`;
+    const heading = step.round !== previousRound ? `\n${roundLabel(step.round)}\n` : "";
+    const line = `${step.text}${step.roll === undefined ? "" : ` [випало ${step.roll}]`}\n`;
     if (page.length + heading.length + line.length > 3000) {
       pages.push(page.trim());
-      page = `Round ${step.round}\n`;
+      page = `${roundLabel(step.round)}\n`;
     } else {
       page += heading;
     }
@@ -38,7 +41,7 @@ export function handleGameInput(state: State, world: World, input: GameInput, no
     state.outbox.push({ chatId, text, keyboard });
   const rawCommand = input.command?.trim().split(/\s+/) ?? [];
   const command = rawCommand[0]?.split("@")[0]?.toLowerCase();
-  const [action, value, pageNumber] = input.callback?.split(":") ?? [];
+  const [action, value, detail] = input.callback?.split(":") ?? [];
   if (!input.callback && !command?.startsWith("/")) return;
 
   state.challenges = state.challenges.filter((challenge) => challenge.expires > now);
@@ -57,7 +60,7 @@ export function handleGameInput(state: State, world: World, input: GameInput, no
   const combatant = (owner: Player) => ({ ...heroFor(owner), name: label(owner) });
 
   function finish(result: Fight, challenger: Player, opponent?: Player) {
-    const report = { id: randomUUID(), summary: result.summary, pages: fightPages(result) };
+    const report = { id: randomUUID(), language: "uk" as const, summary: result.summary, pages: fightPages(result) };
     const participants = [challenger];
     if (opponent) participants.push(opponent);
     for (const [index, participant] of participants.entries()) {
@@ -66,29 +69,30 @@ export function handleGameInput(state: State, world: World, input: GameInput, no
       else if (result.winner === side) participant.wins++;
       else participant.losses++;
       participant.lastFight = report;
-      say(report.summary, [[button("View rounds", `log:${report.id}:0`)], ...menu], participant.id);
+      const text = result.aftermath ? `${report.summary}\n\n${result.aftermath}` : report.summary;
+      say(text, [[button("Ходи бою", `log:${report.id}:0`)], ...menu], participant.id);
     }
   }
 
   function encounters(mode: Mode) {
-    const title = mode === "dungeon" ? "Choose a dungeon." : "Choose an arena bot.";
+    const title = mode === "dungeon" ? "Куди підеш шукати світанок?" : "З ким станеш до двобою?";
     say(title, [
-      ...world[mode].map((entry) => [button(`${entry.name} · ${entry.difficulty}`, `${mode}:${entry.id}`)]),
-      [button("Main menu", "menu:home")],
+      ...world[mode].map((entry) => [button(`${entry.name} · ${entry.difficulty}`, `scene:${mode}:${entry.id}`)]),
+      [home],
     ]);
   }
 
   if (action === "log") {
     const log = currentPlayer.lastFight;
-    const index = Number(pageNumber);
-    if (!log || log.id !== value || !Number.isInteger(index) || !log.pages[index]) {
-      say("This fight log is unavailable. Open your profile for your latest fight.");
+    const index = Number(detail);
+    if (log?.language !== "uk" || log.id !== value || !Number.isInteger(index) || !log.pages[index]) {
+      say("Цей запис недоступний. Останній бій шукай у своєму літописі.");
       return;
     }
     const navigation: Button[] = [];
-    if (index > 0) navigation.push(button("Previous", `log:${log.id}:${index - 1}`));
-    if (index + 1 < log.pages.length) navigation.push(button("Next", `log:${log.id}:${index + 1}`));
-    say(`Fight log · ${index + 1}/${log.pages.length}\n\n${log.pages[index]}`, navigation.length ? [navigation] : []);
+    if (index > 0) navigation.push(button("Назад", `log:${log.id}:${index - 1}`));
+    if (index + 1 < log.pages.length) navigation.push(button("Далі", `log:${log.id}:${index + 1}`));
+    say(`Літопис бою · ${index + 1}/${log.pages.length}\n\n${log.pages[index]}`, navigation.length ? [navigation, [home]] : [[home]]);
     return;
   }
 
@@ -96,42 +100,52 @@ export function handleGameInput(state: State, world: World, input: GameInput, no
     const challenge = state.challenges.find(({ id, to }) => id === value && to === currentPlayer.id);
     const challenger = state.players.find(({ id }) => id === challenge?.from);
     if (!challenge || !challenger) {
-      say("This challenge is no longer available.");
+      say("Цей виклик уже недійсний.");
       return;
     }
     state.challenges = state.challenges.filter(({ id }) => id !== challenge.id);
     if (action === "decline") {
-      say("Challenge declined.");
-      say(`${label(currentPlayer)} declined your challenge.`, menu, challenger.id);
+      say("Виклик відхилено.");
+      say(`${label(currentPlayer)} відхиляє твій виклик.`, menu, challenger.id);
     } else {
       finish(fight(combatant(challenger), combatant(currentPlayer)), challenger, currentPlayer);
     }
     return;
   }
 
+  if (action === "scene" && (value === "dungeon" || value === "bot")) {
+    const encounter = world[value].find(({ id }) => id === detail);
+    if (!encounter) say("Ця пригода вже недоступна.");
+    else say(`${encounter.name}\n\n${encounter.description}\n\nСуперник — ${encounter.opponent.name}`, [
+      [button("До бою", `${value}:${encounter.id}`)],
+      [button("Інша зустріч", value === "dungeon" ? "menu:dungeon" : "menu:bots"), home],
+    ]);
+    return;
+  }
+
   if (action === "dungeon" || action === "bot") {
     const encounter = world[action].find(({ id }) => id === value);
-    if (!encounter) say("This encounter is unavailable.");
-    else finish(fight(combatant(currentPlayer), encounter.opponent), currentPlayer);
+    if (!encounter) say("Ця пригода вже недоступна.");
+    else finish(fightEncounter(combatant(currentPlayer), encounter), currentPlayer);
     return;
   }
 
   if (action === "hero") {
     const hero = world.heroes.find(({ id }) => id === value);
     if (hero) currentPlayer.heroId = hero.id;
-    say(hero ? `Your hero is now ${hero.name}.` : "This hero is unavailable.");
+    say(hero ? `Твій герой — ${hero.name}.` : "Цей герой недоступний.");
     return;
   }
 
   if (command === "/challenge") {
     const username = rawCommand[1]?.toLowerCase();
     if (!username || !/^@[a-z0-9_]{1,32}$/.test(username)) {
-      say("Use /challenge @username. Your opponent needs to have opened Pomrok.");
+      say("Напиши /challenge @username. Суперник має спершу відкрити «Помрок».");
       return;
     }
     const target = state.players.find((candidate) => candidate.username.toLowerCase() === username.slice(1));
     if (!target || target.id === currentPlayer.id) {
-      say("Choose another registered player with a Telegram username.");
+      say("Обери іншого гравця, який уже відкрив гру й має ім’я користувача в Telegram.");
       return;
     }
     const id = randomUUID();
@@ -139,13 +153,13 @@ export function handleGameInput(state: State, world: World, input: GameInput, no
       (entry.from === currentPlayer.id && entry.to === target.id)
       || (entry.from === target.id && entry.to === currentPlayer.id));
     if (exists || state.challenges.filter((entry) => entry.from === currentPlayer.id).length >= 3) {
-      say("You have a pending challenge with this player or have reached your pending limit.");
+      say(exists ? "Ви вже маєте незавершений виклик." : "Зачекай відповіді на один із трьох своїх викликів.");
       return;
     }
     state.challenges.push({ id, from: currentPlayer.id, to: target.id, expires: now + 86_400_000 });
-    say(`${label(currentPlayer)} challenged you to a duel. This challenge expires in 24 hours.`,
-      [[button("Accept", `accept:${id}`), button("Decline", `decline:${id}`)]], target.id);
-    say(`Challenge sent to ${label(target)}.`);
+    say(`${label(currentPlayer)} кличе тебе на двобій. Маєш 24 години на відповідь.`,
+      [[button("Прийняти", `accept:${id}`), button("Відхилити", `decline:${id}`)]], target.id);
+    say(`Виклик для ${label(target)} надіслано.`);
     return;
   }
 
@@ -158,25 +172,28 @@ export function handleGameInput(state: State, world: World, input: GameInput, no
       encounters("bot");
       return;
     case "arena":
-      say("Fight an arena bot or use /challenge @username to duel another Telegram player.", [
-        [button("Fight a bot", "menu:bots")], [button("Main menu", "menu:home")],
+      say("На майдані вже чекають суперники. А щоб викликати іншого гравця, напиши /challenge @username.", [
+        [button("Битися з ботом", "menu:bots")], [home],
       ]);
       return;
     case "hero":
-      say(`Current hero · ${heroFor(currentPlayer).name}\n\n${world.heroes.map((entry) => `${entry.name} · ${entry.description}`).join("\n")}`,
-        world.heroes.map((entry) => [button(entry.name, `hero:${entry.id}`)]));
+      say(`Твій герой — ${heroFor(currentPlayer).name}\n\n${world.heroes.map((entry) => `${entry.name} · ${entry.description}`).join("\n")}`,
+        [...world.heroes.map((entry) => [button(entry.name, `hero:${entry.id}`)]), [home]]);
       return;
     case "profile": {
-      const latest = currentPlayer.lastFight;
-      const tally = `${currentPlayer.wins} wins · ${currentPlayer.losses} losses · ${currentPlayer.draws} draws`;
-      say(`${label(currentPlayer)} · ${heroFor(currentPlayer).name}\n${tally}${latest ? `\n\nLatest fight\n${latest.summary}` : ""}`,
-        latest ? [[button("View latest rounds", `log:${latest.id}:0`)], ...menu] : menu);
+      const latest = currentPlayer.lastFight?.language === "uk" ? currentPlayer.lastFight : undefined;
+      const tally = `Перемоги — ${currentPlayer.wins} · Поразки — ${currentPlayer.losses} · Нічиї — ${currentPlayer.draws}`;
+      say(`${label(currentPlayer)} · ${heroFor(currentPlayer).name}\n${tally}${latest ? `\n\nОстанній бій\n${latest.summary}` : ""}`,
+        latest ? [[button("Ходи останнього бою", `log:${latest.id}:0`)], ...menu] : menu);
       return;
     }
+    case "story":
+      say([world.story.title, ...world.story.prologue].join("\n\n"));
+      return;
     case "help":
-      say("Pick a hero, then enter a dungeon or the arena. Fights resolve automatically. Every six D6 draws use each face once. At half health, a combatant can start bleeding or become weakened.");
+      say(["Обери героя й зустріч. Бій відбудеться сам, а ходи запише літописець.", ...combatRules].join("\n\n"));
       return;
     default:
-      say("Welcome to Pomrok. Enter a dungeon or challenge a rival in the arena.");
+      say(`Помрок\n\n${world.story.hook}`);
   }
 }

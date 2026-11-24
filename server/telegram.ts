@@ -29,6 +29,7 @@ class TelegramError extends Error {
 }
 
 export function telegramClient(token: string, signal: AbortSignal, fetcher = fetch) {
+  if (!/^\d+:[a-zA-Z0-9_-]+$/.test(token)) throw new Error("Некоректний формат токена Telegram.");
   return async function call<T>(method: string, body: object = {}): Promise<T> {
     const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(method === "getUpdates" ? 40_000 : 12_000)]);
     let response: Response;
@@ -37,39 +38,56 @@ export function telegramClient(token: string, signal: AbortSignal, fetcher = fet
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
+        redirect: "error",
         signal: requestSignal,
       });
     } catch {
       throw new Error(`Telegram network request failed (${method})`);
     }
-    const content = await response.json() as TelegramResponse<T>;
-    if (!content.ok) {
-      throw new TelegramError(content.error_code ?? response.status, content.parameters?.retry_after);
+    const content = await response.json().catch(() => null) as TelegramResponse<T> | null;
+    if (!response.ok || !content?.ok) {
+      throw new TelegramError(content?.error_code ?? response.status, content?.parameters?.retry_after);
     }
     return content.result as T;
   };
 }
 
+export function readBotToken(env: Readonly<Record<string, string | undefined>> = process.env): string | undefined {
+  return env.POMROK_BOT_KEY?.trim() || env.TELEGRAM_BOT_TOKEN?.trim() || undefined;
+}
+
+export async function verifyPollingBot(call: ReturnType<typeof telegramClient>): Promise<string> {
+  const bot = await call<{ is_bot: boolean; username?: string }>("getMe");
+  if (!bot.is_bot || !bot.username || !/^[a-zA-Z0-9_]{1,32}$/.test(bot.username)) {
+    throw new Error("Telegram не повернув дійсного імені бота.");
+  }
+  const webhook = await call<{ url: string }>("getWebhookInfo");
+  if (webhook.url) throw new Error("У бота вже є вебхук. Вимкни його перед запуском опитування.");
+  return bot.username;
+}
+
 export async function runTelegram(
   call: ReturnType<typeof telegramClient>, store: TomlStore, world: World,
-  logger: FastifyBaseLogger, signal: AbortSignal, setUsername: (name: string) => void,
+  logger: FastifyBaseLogger, signal: AbortSignal,
+  callbacks: { onUsername: (name: string) => void; onPolling: (ready: boolean) => void },
 ) {
   let offset: number | undefined;
   let configured = false;
   while (!signal.aborted) {
     try {
       if (!configured) {
-        const identity = await call<{ username: string }>("getMe");
-        setUsername(identity.username);
+        const username = await verifyPollingBot(call);
         await call("setMyCommands", { commands: [
-          { command: "start", description: "Open Pomrok" },
-          { command: "dungeon", description: "Enter a dungeon" },
-          { command: "arena", description: "Choose an arena opponent" },
-          { command: "challenge", description: "Challenge a player by @username" },
-          { command: "hero", description: "Choose your hero" },
-          { command: "profile", description: "View your record and latest fight" },
-          { command: "help", description: "Read the combat rules" },
+          { command: "start", description: "Зайти до корчми" },
+          { command: "story", description: "Дізнатися, куди подівся світанок" },
+          { command: "dungeon", description: "Рушити в лісову пригоду" },
+          { command: "arena", description: "Обрати суперника для двобою" },
+          { command: "challenge", description: "Викликати гравця за іменем @username" },
+          { command: "hero", description: "Обрати героя" },
+          { command: "profile", description: "Відкрити свій літопис" },
+          { command: "help", description: "Прочитати правила бою" },
         ] });
+        callbacks.onUsername(username);
         configured = true;
         logger.info("Telegram bot is ready");
       }
@@ -98,6 +116,7 @@ export async function runTelegram(
         limit: 1,
         allowed_updates: ["message", "callback_query"],
       });
+      callbacks.onPolling(true);
       const update = updates[0];
       if (!update) {
         offset = undefined;
@@ -120,6 +139,7 @@ export async function runTelegram(
       offset = update.update_id + 1;
     } catch (error) {
       if (signal.aborted) break;
+      callbacks.onPolling(false);
       const telegramError = error instanceof TelegramError ? error : undefined;
       logger.warn({ message: error instanceof Error ? error.message : "Unknown error" }, "Telegram will retry");
       await delay((telegramError?.retryAfter ?? 3) * 1000, undefined, { signal }).catch(() => undefined);

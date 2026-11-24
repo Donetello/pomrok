@@ -1,7 +1,15 @@
+[story]
+title = "Куди подівся світанок"
+hook = "Темрява прихопила світанок. У селі це помітили, коли півень зажадав плати за нічну зміну."
+prologue = [
+  "Колись на Чорногорі світло й темрява ділили добу навпіл. Узимку темрява брала трохи більше, зате ніколи не спізнювалася. А цієї ночі від ранку лишилася записка на дверях дзвіниці: «Вилучено до з’ясування обставин».",
+  "Громада вирішила повернути світанок. Староста викликав добровольців, тобто прочитав список тих, хто не встиг вийти з корчми. Дорога до застави пана Помрока йде через дзвіницю та туманну ґать. Візьми зброю й скриньку з кульками. Печатку, якщо до неї дійде, позичиш у темряви.",
+]
+
 [[heroes]]
 id = "vanguard"
-name = "Vanguard"
-description = "Heavy armour and steady strikes."
+name = "Щитник"
+description = "Носить дубовий щит. Дуб, за словами щитника, був не проти."
 mark = "shield"
 hp = 43
 attack = 9
@@ -10,8 +18,8 @@ speed = 2
 
 [[heroes]]
 id = "duelist"
-name = "Duelist"
-description = "Quick blades and a strong opening."
+name = "Легінь"
+description = "Швидкий на ноги й на шаблю. На обіцянки ще швидший."
 mark = "swords"
 hp = 35
 attack = 10
@@ -20,8 +28,8 @@ speed = 5
 
 [[heroes]]
 id = "hexblade"
-name = "Hexblade"
-description = "Devastating hits from a fragile front line."
+name = "Мольфар"
+description = "Уміє гукнути грім. З бронею складніше: грім не любить, коли його носять."
 mark = "flame"
 hp = 37
 attack = 12
@@ -30,12 +38,14 @@ speed = 3
 
 [[dungeon]]
 id = "crypt"
-name = "The Hollow Crypt"
-description = "Beneath the ruined chapel, a restless oath keeps the dead on watch."
-difficulty = "Easy"
+name = "Дзвіниця без ранку"
+description = "Під дерев’яною дзвіницею сидить упир. Каже, що тримає дзвін на ремонті. Квитанція, за його словами, теж на ремонті."
+difficulty = "Легко"
 mark = "skull"
+victory = "Дзвін озвався, і в потічку спалахнула перша смужка світла. Упир видав квитанцію. Вона, як не дивно, була в повному порядку."
+defeat = "Упир зачинив дзвіницю й повісив табличку «Обід». Добре йому. Решта села ще чекає на сніданок."
 [dungeon.opponent]
-name = "Crypt Warden"
+name = "Упир-дзвонар"
 hp = 29
 attack = 8
 armor = 2
@@ -43,12 +53,14 @@ speed = 2
 
 [[dungeon]]
 id = "fen"
-name = "The Lantern Fen"
-description = "Follow the lights past the reeds, where a hungry beast stalks the causeway."
-difficulty = "Standard"
+name = "Туманна ґать"
+description = "Мавка перегородила шлях крізь праліс і збирає мито з кожного, хто відкидає тінь. Особливо прибуткові, каже, дні з двома сонцями."
+difficulty = "Помірно"
 mark = "moon"
+victory = "Мавка пропустила тебе й навіть підняла туман над стежкою. Про всяк випадок порахувала це як послугу, а не поразку."
+defeat = "Мавка записала бій до книги прибутків. У графі про тебе стоїть «повернеться». Оптимістка."
 [dungeon.opponent]
-name = "Fen Stalker"
+name = "Мавка-митарка"
 hp = 39
 attack = 10
 armor = 2
@@ -56,12 +68,14 @@ speed = 4
 
 [[dungeon]]
 id = "keep"
-name = "The Ashen Keep"
-description = "Beyond the burned gates, the last sentinel guards a throne of cinders."
-difficulty = "Hard"
+name = "Застава на Чорногорі"
+description = "Пан Помрок тримає світанок за брамою. Без трьох печаток не випускає. Третю печатку, на його думку, поставлять ізранку."
+difficulty = "Важко"
 mark = "flame"
+victory = "Світло покотилося з полонини аж до села. Пан Помрок записав, що світанок відбувся за його сприяння. І справді, без нього всі давно вже спали б."
+defeat = "Пан Помрок підписав дозвіл і відклав до ранку. Ранок відклався разом із дозволом."
 [dungeon.opponent]
-name = "Cinder Sentinel"
+name = "Пан Помрок"
 hp = 49
 attack = 11
 armor = 3
@@ -69,12 +83,14 @@ speed = 2
 
 [[bot]]
 id = "rook"
-name = "Rook"
-description = "A defensive sparring partner who outlasts careless challengers."
-difficulty = "Easy"
+name = "Олекса Ремінь"
+description = "Вчить тримати оборону. Навіть коли його кличуть вечеряти, спочатку піднімає щит."
+difficulty = "Легко"
 mark = "shield"
+victory = "Олекса назвав це уроком. Сказав, що найкращі уроки ті, за які платить учитель."
+defeat = "Олекса подав руку й запросив до столу. Миску тримав так, що й шаблею не виб’єш."
 [bot.opponent]
-name = "Rook"
+name = "Олекса Ремінь"
 hp = 39
 attack = 8
 armor = 3
@@ -82,12 +98,14 @@ speed = 2
 
 [[bot]]
 id = "vesper"
-name = "Vesper"
-description = "A swift arena regular who sets the pace from the opening blow."
-difficulty = "Standard"
+name = "Дзвінка"
+description = "Б’є швидше, ніж суддя встигає крикнути «почали». Суддя вже навчився кричати заздалегідь."
+difficulty = "Помірно"
 mark = "swords"
+victory = "Дзвінка попросила повторити рух. Бажано повільніше, бо хвалити те, чого не бачила, їй незручно."
+defeat = "Суддя крикнув «почали». Дзвінка тактовно почекала, поки він помітить, що вже скінчили."
 [bot.opponent]
-name = "Vesper"
+name = "Дзвінка"
 hp = 36
 attack = 11
 armor = 2
@@ -95,12 +113,14 @@ speed = 5
 
 [[bot]]
 id = "ember"
-name = "Ember"
-description = "A relentless opponent who turns the smallest opening into a heavy strike."
-difficulty = "Hard"
+name = "Баба Жарина"
+description = "За день пече сорок паляниць і проводить три двобої. Замовлення приймає на все, крім поразок."
+difficulty = "Важко"
 mark = "flame"
+victory = "Жарина вручила тобі паляницю. «Добре, що хоч хтось у цьому селі вміє давати відсіч. Тримай, поки тепла»."
+defeat = "Жарина струсила борошно з рукава. «Нічого. Перша паляниця теж інколи горить»."
 [bot.opponent]
-name = "Ember"
+name = "Баба Жарина"
 hp = 44
 attack = 12
 armor = 3

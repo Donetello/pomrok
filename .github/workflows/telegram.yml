@@ -1,0 +1,64 @@
+name: Telegram bot
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy the bot to the configured Docker host after verification
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pomrok-telegram
+  cancel-in-progress: false
+
+jobs:
+  telegram:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Verify Telegram identity and polling configuration
+        env:
+          POMROK_BOT_KEY: ${{ secrets.POMROK_BOT_KEY }}
+        run: node server/check-telegram.ts
+      - name: Deploy to the Docker host
+        if: inputs.deploy
+        env:
+          POMROK_BOT_KEY: ${{ secrets.POMROK_BOT_KEY }}
+          SSH_HOST: ${{ vars.POMROK_DEPLOY_HOST }}
+          SSH_USER: ${{ vars.POMROK_DEPLOY_USER }}
+          SSH_KNOWN_HOSTS: ${{ vars.POMROK_DEPLOY_KNOWN_HOSTS }}
+          SSH_KEY: ${{ secrets.POMROK_DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SSH_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ||
+                ! "$SSH_USER" =~ ^[a-z_][a-z0-9_-]*$ ||
+                -z "$SSH_KNOWN_HOSTS" || -z "$SSH_KEY" ]]; then
+            echo "::error::Configure the Pomrok Docker host, SSH user, trusted host key and deploy key."
+            exit 1
+          fi
+
+          install -m 0700 -d "$HOME/.ssh"
+          umask 077
+          printf '%s\n' "$SSH_KEY" > "$HOME/.ssh/pomrok_deploy"
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > "$HOME/.ssh/pomrok_known_hosts"
+          {
+            printf '%s\n' 'Host pomrok-deploy'
+            printf '  HostName %s\n  User %s\n' "$SSH_HOST" "$SSH_USER"
+            printf '%s\n' '  BatchMode yes' '  IdentitiesOnly yes' '  StrictHostKeyChecking yes'
+            printf '%s\n' '  IdentityFile ~/.ssh/pomrok_deploy' '  UserKnownHostsFile ~/.ssh/pomrok_known_hosts'
+          } >> "$HOME/.ssh/config"
+          unset SSH_KEY SSH_KNOWN_HOSTS
+
+          export DOCKER_HOST=ssh://pomrok-deploy
+          docker compose --project-name pomrok up --detach --build --wait --wait-timeout 90 api
