@@ -1,0 +1,18 @@
+services:
+  api:
+    environment:
+      POMROK_BOT_KEY: ${POMROK_BOT_KEY:?Set the Pomrok BotFather token in .env}
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_NGROK_API_URL: http://ngrok:4040/api/tunnels
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?Set a random webhook secret in .env}
+  ngrok:
+    image: ngrok/ngrok:3
+    command: ["http", "api:3002", "--config=/etc/ngrok.yml", "--inspect=false"]
+    restart: unless-stopped
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:?Set the ngrok agent token in .env}
+    volumes:
+      - ./config/ngrok.yml:/etc/ngrok.yml:ro
+    depends_on:
+      api:
+        condition: service_started
