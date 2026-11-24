@@ -3,10 +3,10 @@ import type { ReactNode } from "react";
 import "./styles.css";
 
 export const metadata: Metadata = {
-  title: "Pomrok",
-  description: "A Telegram auto-battler. Descend into dungeons, duel rivals, and draw from the D6 marble box.",
+  title: "Помрок",
+  description: "Карпатська бувальщина про зниклий світанок, лісових істот і двобої у Telegram.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="en"><body>{children}</body></html>;
+  return <html lang="uk"><body>{children}</body></html>;
 }

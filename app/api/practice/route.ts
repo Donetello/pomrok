@@ -1,7 +1,7 @@
 import { gameApi } from "../../game-api";
 
 const MAX_BYTES = 4096;
-const tooLarge = () => Response.json({ message: "Fight request is too large." }, { status: 413 });
+const tooLarge = () => Response.json({ message: "Запит на бій завеликий." }, { status: 413 });
 
 export async function POST(request: Request) {
   if (Number(request.headers.get("content-length")) > MAX_BYTES) return tooLarge();
@@ -27,8 +27,12 @@ export async function POST(request: Request) {
       headers: { "Content-Type": "application/json" },
       body,
     });
-    return Response.json(await response.json(), { status: response.status });
+    if (!response.ok) {
+      const message = response.status === 404 ? "Ця зустріч або цей герой недоступні." : "Не вдалося почати бій. Спробуй ще раз.";
+      return Response.json({ message }, { status: response.status });
+    }
+    return Response.json(await response.json());
   } catch {
-    return Response.json({ message: "The arena is unavailable. Try again in a moment." }, { status: 502 });
+    return Response.json({ message: "Бій поки недоступний. Спробуй трохи згодом." }, { status: 502 });
   }
 }
