@@ -66,6 +66,21 @@ export async function verifyPollingBot(call: ReturnType<typeof telegramClient>):
   return bot.username;
 }
 
+export async function configureTelegramMenu(call: ReturnType<typeof telegramClient>) {
+  await call("setMyCommands", { commands: [
+    { command: "start", description: "Зайти до корчми" },
+    { command: "menu", description: "Відкрити меню Помроку" },
+    { command: "story", description: "Дізнатися, куди подівся світанок" },
+    { command: "dungeon", description: "Рушити в лісову пригоду" },
+    { command: "arena", description: "Обрати суперника для двобою" },
+    { command: "challenge", description: "Викликати гравця за іменем @username" },
+    { command: "hero", description: "Обрати героя" },
+    { command: "profile", description: "Відкрити свій літопис" },
+    { command: "help", description: "Прочитати правила бою" },
+  ] });
+  await call("setChatMenuButton", { menu_button: { type: "commands" } });
+}
+
 export async function runTelegram(
   call: ReturnType<typeof telegramClient>, store: TomlStore, world: World,
   logger: FastifyBaseLogger, signal: AbortSignal,
@@ -77,16 +92,7 @@ export async function runTelegram(
     try {
       if (!configured) {
         const username = await verifyPollingBot(call);
-        await call("setMyCommands", { commands: [
-          { command: "start", description: "Зайти до корчми" },
-          { command: "story", description: "Дізнатися, куди подівся світанок" },
-          { command: "dungeon", description: "Рушити в лісову пригоду" },
-          { command: "arena", description: "Обрати суперника для двобою" },
-          { command: "challenge", description: "Викликати гравця за іменем @username" },
-          { command: "hero", description: "Обрати героя" },
-          { command: "profile", description: "Відкрити свій літопис" },
-          { command: "help", description: "Прочитати правила бою" },
-        ] });
+        await configureTelegramMenu(call);
         callbacks.onUsername(username);
         configured = true;
         logger.info("Telegram bot is ready");
