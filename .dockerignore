@@ -1,0 +1,10 @@
+.git
+.next
+node_modules
+coverage
+.scannerwork
+data
+.env
+.env.*
+*.tsbuildinfo
+npm-debug.log*
