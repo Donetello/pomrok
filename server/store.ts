@@ -17,6 +17,8 @@ export type Player = {
 export type Challenge = { id: string; from: number; to: number; expires: number };
 export type State = {
   lastUpdateId: number;
+  recentWebhookUpdates?: number[];
+  registeredWebhookUrls?: string[];
   players: Player[];
   challenges: Challenge[];
   outbox: Delivery[];
