@@ -1,0 +1,220 @@
+{
+  "uid": "pomrok-uptime",
+  "title": "Помрок — Uptime",
+  "tags": [
+    "pomrok"
+  ],
+  "schemaVersion": 41,
+  "version": 1,
+  "refresh": "30s",
+  "timezone": "browser",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "panels": [
+    {"id":1,"type":"row","title":"Доступність і запити","collapsed":false,"gridPos":{"x":0,"y":0,"w":24,"h":1},"panels":[]},
+    {
+      "id": 2,
+      "title": "Доступність за 24 год",
+      "type": "stat",
+      "gridPos": {"x":0,"y":1,"w":8,"h":5},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"percentunit","thresholds":{"mode":"absolute","steps":[{"color":"red","value":null},{"color":"orange","value":0.99},{"color":"green","value":0.999}]}},"overrides":[]},
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"textMode":"value_and_name","colorMode":"value","graphMode":"none"},
+      "description": "Частка успішних перевірок серед зібраних даних. web_arena — вебмайданчик, api — ігровий API, bot_readiness — готовність Telegram-бота.",
+      "targets": [
+        {"refId":"A","expr":"avg_over_time(pomrok:probe_available[24h])","legendFormat":"{{probe}} · {{location}}","instant":true,"range":false}
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Доступність за 7 днів",
+      "type": "stat",
+      "gridPos": {"x":8,"y":1,"w":8,"h":5},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"percentunit","thresholds":{"mode":"absolute","steps":[{"color":"red","value":null},{"color":"orange","value":0.99},{"color":"green","value":0.999}]}},"overrides":[]},
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"textMode":"value_and_name","colorMode":"value","graphMode":"none"},
+      "description": "Частка успішних перевірок серед зібраних даних. web_arena — вебмайданчик, api — ігровий API, bot_readiness — готовність Telegram-бота.",
+      "targets": [
+        {"refId":"A","expr":"avg_over_time(pomrok:probe_available[7d])","legendFormat":"{{probe}} · {{location}}","instant":true,"range":false}
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Доступність за 30 днів",
+      "type": "stat",
+      "gridPos": {"x":16,"y":1,"w":8,"h":5},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"percentunit","thresholds":{"mode":"absolute","steps":[{"color":"red","value":null},{"color":"orange","value":0.99},{"color":"green","value":0.999}]}},"overrides":[]},
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"textMode":"value_and_name","colorMode":"value","graphMode":"none"},
+      "description": "Частка успішних перевірок серед зібраних даних. web_arena — вебмайданчик, api — ігровий API, bot_readiness — готовність Telegram-бота.",
+      "targets": [
+        {"refId":"A","expr":"avg_over_time(pomrok:probe_available[30d])","legendFormat":"{{probe}} · {{location}}","instant":true,"range":false}
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Час відповіді HTTP · p95",
+      "type": "timeseries",
+      "gridPos": {"x":0,"y":6,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"s"},"overrides":[]},
+      "options": {"legend":{"showLegend":true,"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}},
+      "targets": [
+        {"refId":"A","expr":"histogram_quantile(0.95, sum by (component, le) (rate(http_server_request_duration_bucket[$__rate_interval])))","legendFormat":"{{component}}","instant":false,"range":true}
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Частка відповідей HTTP 5xx",
+      "type": "timeseries",
+      "gridPos": {"x":12,"y":6,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"percentunit"},"overrides":[]},
+      "options": {"legend":{"showLegend":true,"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}},
+      "targets": [
+        {"refId":"A","expr":"sum by (component) (rate(pomrok_http_requests_total{http_response_status_class=\"5xx\"}[$__rate_interval])) / (sum by (component) (rate(pomrok_http_requests_total[$__rate_interval])) > 0)","legendFormat":"{{component}}","instant":false,"range":true}
+      ]
+    },
+    {
+      "id": 7,
+      "title": "HTTP-запити за вибраний період",
+      "type": "stat",
+      "gridPos": {"x":0,"y":14,"w":8,"h":7},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"short"},"overrides":[]},
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"textMode":"value_and_name","colorMode":"none","graphMode":"none"},
+      "description": "Вебзапити, внутрішній ігровий API та вебхук — окремі ряди. Одне натискання у вебгрі може спричинити і вебзапит, і виклик ігрового API.",
+      "targets": [
+        {"refId":"A","expr":"round(sum by (component) (increase(pomrok_http_requests_total[$__range])))","legendFormat":"{{component}}","instant":true,"range":false}
+      ]
+    },
+    {
+      "id": 8,
+      "title": "HTTP-запити за секунду",
+      "type": "timeseries",
+      "gridPos": {"x":8,"y":14,"w":16,"h":7},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"reqps"},"overrides":[]},
+      "options": {"legend":{"showLegend":true,"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}},
+      "targets": [
+        {"refId":"A","expr":"sum by (component, http_route, http_response_status_code, http_response_status_class) (rate(pomrok_http_requests_total[$__rate_interval])) > 0","legendFormat":"{{component}} {{http_route}} · {{http_response_status_code}} ({{http_response_status_class}})","instant":false,"range":true}
+      ]
+    },
+    {"id":9,"type":"row","title":"Гравці та бої","collapsed":false,"gridPos":{"x":0,"y":21,"w":24,"h":1},"panels":[]},
+    {
+      "id": 10,
+      "title": "Нові гравці Telegram",
+      "type": "stat",
+      "gridPos": {"x":0,"y":22,"w":12,"h":5},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"short"},"overrides":[]},
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"textMode":"value_and_name","colorMode":"none","graphMode":"none"},
+      "description": "Профілі, уперше збережені в межах ковзного вікна. Реєстрації до впровадження метрики не враховуються.",
+      "targets": [
+        {"refId":"A","expr":"pomrok_players_new","legendFormat":"За {{window}}","instant":true,"range":false}
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Активні гравці Telegram",
+      "type": "stat",
+      "gridPos": {"x":12,"y":22,"w":12,"h":5},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"short"},"overrides":[]},
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"textMode":"value_and_name","colorMode":"none","graphMode":"none"},
+      "description": "Унікальні профілі з командою чи натисканням кнопки в межах ковзного вікна.",
+      "targets": [
+        {"refId":"A","expr":"pomrok_players_active","legendFormat":"За {{window}}","instant":true,"range":false}
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Завершені бої за вибраний період",
+      "type": "stat",
+      "gridPos": {"x":0,"y":27,"w":12,"h":6},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"short"},"overrides":[]},
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"textMode":"value_and_name","colorMode":"none","graphMode":"none"},
+      "targets": [
+        {"refId":"A","expr":"round(sum by (mode) (increase(pomrok_telegram_fights_total[$__range])))","legendFormat":"Telegram · {{mode}}","instant":true,"range":false},
+        {"refId":"B","expr":"round(sum by (mode) (increase(pomrok_practice_fights_total[$__range])))","legendFormat":"Веб · {{mode}}","instant":true,"range":false}
+      ]
+    },
+    {
+      "id": 13,
+      "title": "PvP-виклики за вибраний період",
+      "type": "stat",
+      "gridPos": {"x":12,"y":27,"w":12,"h":6},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"short"},"overrides":[]},
+      "options": {"reduceOptions":{"calcs":["lastNotNull"]},"textMode":"value_and_name","colorMode":"none","graphMode":"none"},
+      "targets": [
+        {"refId":"A","expr":"round(sum by (outcome) (increase(pomrok_challenges_total[$__range])))","legendFormat":"{{outcome}}","instant":true,"range":false}
+      ]
+    },
+    {"id":14,"type":"row","title":"Telegram і збереження","collapsed":false,"gridPos":{"x":0,"y":33,"w":24,"h":1},"panels":[]},
+    {
+      "id": 15,
+      "title": "Оновлення Telegram за секунду",
+      "type": "timeseries",
+      "gridPos": {"x":0,"y":34,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"reqps"},"overrides":[]},
+      "options": {"legend":{"showLegend":true,"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}},
+      "targets": [
+        {"refId":"A","expr":"sum by (transport, result) (rate(pomrok_telegram_updates_total[$__rate_interval])) > 0","legendFormat":"{{transport}} · {{result}}","instant":false,"range":true}
+      ]
+    },
+    {
+      "id": 16,
+      "title": "Помилки Telegram API за секунду",
+      "type": "timeseries",
+      "gridPos": {"x":12,"y":34,"w":12,"h":8},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"reqps"},"overrides":[]},
+      "options": {"legend":{"showLegend":true,"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}},
+      "targets": [
+        {"refId":"A","expr":"sum by (method, result) (rate(pomrok_telegram_api_requests_total{result!~\"ok|cancelled\"}[$__rate_interval])) > 0","legendFormat":"{{method}} · {{result}}","instant":false,"range":true}
+      ]
+    },
+    {
+      "id": 17,
+      "title": "Відповіді в черзі Telegram",
+      "type": "timeseries",
+      "gridPos": {"x":0,"y":42,"w":8,"h":8},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"short"},"overrides":[]},
+      "options": {"legend":{"showLegend":true,"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}},
+      "targets": [
+        {"refId":"A","expr":"pomrok_telegram_outbox_depth","legendFormat":"У черзі","instant":false,"range":true}
+      ]
+    },
+    {
+      "id": 18,
+      "title": "Затримка відповідей Telegram",
+      "type": "timeseries",
+      "gridPos": {"x":8,"y":42,"w":8,"h":8},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"s"},"overrides":[]},
+      "options": {"legend":{"showLegend":true,"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}},
+      "targets": [
+        {"refId":"A","expr":"pomrok_telegram_outbox_oldest_age","legendFormat":"Найстаріша в черзі","instant":false,"range":true},
+        {"refId":"B","expr":"histogram_quantile(0.95, sum by (le) (rate(pomrok_telegram_delivery_duration_bucket[$__rate_interval])))","legendFormat":"Доставлені · p95","instant":false,"range":true}
+      ]
+    },
+    {
+      "id": 19,
+      "title": "Помилки збереження за 5 хв",
+      "type": "timeseries",
+      "gridPos": {"x":16,"y":42,"w":8,"h":8},
+      "datasource": {"type":"prometheus","uid":"pomrok-prometheus"},
+      "fieldConfig": {"defaults":{"unit":"short"},"overrides":[]},
+      "options": {"legend":{"showLegend":true,"displayMode":"list","placement":"bottom"},"tooltip":{"mode":"multi"}},
+      "targets": [
+        {"refId":"A","expr":"round(increase(pomrok_state_save_failures_total[5m]))","legendFormat":"Помилки запису","instant":false,"range":true}
+      ]
+    }
+  ]
+}

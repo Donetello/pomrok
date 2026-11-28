@@ -1,0 +1,95 @@
+apiVersion: 1
+groups:
+  - orgId: 1
+    name: Pomrok
+    folder: Pomrok
+    interval: 30s
+    rules:
+      - uid: pomrok-uptime
+        title: Помрок недоступний
+        condition: B
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: 'Перевірка {{ $labels.probe }} ({{ $labels.location }}) не проходить.'
+        data:
+          - &query
+            refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: pomrok-prometheus
+            model:
+              expr: 'pomrok:probe_available'
+              instant: true
+              range: false
+              refId: A
+          - &threshold
+            refId: B
+            relativeTimeRange: { from: 0, to: 0 }
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: A
+              refId: B
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+      - uid: pomrok-metrics
+        title: Метрики Помроку недоступні
+        condition: B
+        for: 1m
+        noDataState: Alerting
+        execErrState: Error
+        annotations:
+          summary: 'Prometheus не може зібрати метрики для {{ $labels.job }} {{ $labels.instance }}.'
+        data:
+          - <<: *query
+            model:
+              expr: 'up{job="pomrok-app"} or min by (job, location) (up{job=~"pomrok-probes.*"})'
+              instant: true
+              range: false
+              refId: A
+          - *threshold
+      - uid: pomrok-outbox
+        title: Затримка відповідей Telegram
+        condition: B
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: Найстаріша відповідь чекає в черзі понад дві хвилини.
+        data:
+          - <<: *query
+            model:
+              expr: 'pomrok_telegram_outbox_oldest_age'
+              instant: true
+              range: false
+              refId: A
+          - <<: *threshold
+            model:
+              type: threshold
+              expression: A
+              refId: B
+              conditions:
+                - evaluator: { type: gt, params: [120] }
+      - uid: pomrok-state
+        title: Повторні помилки збереження гри
+        condition: B
+        for: 0s
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: Перевір запис стану гри в томі game-data.
+        data:
+          - <<: *query
+            model:
+              expr: 'increase(pomrok_state_save_failures_total[5m])'
+              instant: true
+              range: false
+              refId: A
+          - <<: *threshold
+            model:
+              type: threshold
+              expression: A
+              refId: B
+              conditions:
+                - evaluator: { type: gte, params: [2] }
