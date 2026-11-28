@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import Fastify from "fastify";
 import type { World } from "../shared/game.ts";
+import { observeFastify, type ApiMetrics } from "./monitoring.ts";
 import type { TomlStore } from "./store.ts";
 import {
   applyTelegramUpdate, configureTelegramMenu, deliverTelegramMessage, telegramUsername,
@@ -50,8 +51,10 @@ export async function registerTelegramWebhook(
 
 export function createTelegramWebhook(
   call: ReturnType<typeof telegramClient>, store: TomlStore, world: World, secret: string,
+  metrics?: ApiMetrics,
 ) {
   const app = Fastify({ bodyLimit: 256 * 1024 });
+  if (metrics?.http) observeFastify(app, metrics.http, "telegram_webhook");
   const expected = digest(secret);
   let pending = Promise.resolve();
   const serialize = (operation: () => Promise<void>) => {
@@ -61,7 +64,7 @@ export function createTelegramWebhook(
   };
   async function drain() {
     for (;;) {
-      if (!await deliverTelegramMessage(call, store, app.log)) return;
+      if (!await deliverTelegramMessage(call, store, app.log, metrics?.game)) return;
     }
   }
 
@@ -78,7 +81,7 @@ export function createTelegramWebhook(
   }, async (request, reply) => {
     try {
       await serialize(async () => {
-        await applyTelegramUpdate(call, store, world, request.body, true);
+        await applyTelegramUpdate(call, store, world, request.body, true, metrics?.game);
         await drain();
       });
       return reply.send({ ok: true });
