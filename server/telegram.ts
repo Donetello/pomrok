@@ -1,6 +1,7 @@
 import { setTimeout as delay } from "node:timers/promises";
 import type { FastifyBaseLogger } from "fastify";
 import type { World } from "../shared/game.ts";
+import type { GameMetrics } from "./monitoring.ts";
 import type { TomlStore } from "./store.ts";
 import { handleGameInput, type TelegramUser } from "./telegram-game.ts";
 
@@ -28,7 +29,7 @@ class TelegramError extends Error {
   }
 }
 
-export function telegramClient(token: string, signal: AbortSignal, fetcher = fetch) {
+export function telegramClient(token: string, signal: AbortSignal, fetcher = fetch, metrics?: GameMetrics) {
   if (!/^\d+:[a-zA-Z0-9_-]+$/.test(token)) throw new Error("Некоректний формат токена Telegram.");
   return async function call<T>(method: string, body: object = {}): Promise<T> {
     const requestSignal = AbortSignal.any([signal, AbortSignal.timeout(method === "getUpdates" ? 40_000 : 12_000)]);
@@ -42,12 +43,16 @@ export function telegramClient(token: string, signal: AbortSignal, fetcher = fet
         signal: requestSignal,
       });
     } catch {
+      metrics?.recordTelegramRequest(method, signal.aborted ? "cancelled" : requestSignal.aborted ? "timeout" : "network_error");
       throw new Error(`Telegram network request failed (${method})`);
     }
     const content = await response.json().catch(() => null) as TelegramResponse<T> | null;
     if (!response.ok || !content?.ok) {
-      throw new TelegramError(content?.error_code ?? response.status, content?.parameters?.retry_after);
+      const status = content?.error_code ?? response.status;
+      metrics?.recordTelegramRequest(method, status >= 400 && status <= 599 ? String(status) : "invalid_response");
+      throw new TelegramError(status, content?.parameters?.retry_after);
     }
+    metrics?.recordTelegramRequest(method, "ok");
     return content.result as T;
   };
 }
@@ -88,27 +93,41 @@ export async function configureTelegramMenu(call: ReturnType<typeof telegramClie
 
 export async function applyTelegramUpdate(
   call: ReturnType<typeof telegramClient>, store: TomlStore, world: World, update: TelegramUpdate,
-  webhook = false,
+  webhook = false, metrics?: GameMetrics,
 ) {
+  const transport = webhook ? "webhook" : "polling";
   const state = store.snapshot();
   const callback = update.callback_query;
   if (callback) await call("answerCallbackQuery", { callback_query_id: callback.id }).catch(() => undefined);
   const chat = callback?.message?.chat ?? update.message?.chat;
   const user = callback?.from ?? update.message?.from;
   const seen = state.recentWebhookUpdates ?? [];
-  if (state.lastUpdateId === update.update_id || (webhook && seen.includes(update.update_id))) return;
-  if (chat?.type !== "private" || !user) return;
+  if (state.lastUpdateId === update.update_id || (webhook && seen.includes(update.update_id))) {
+    metrics?.recordUpdate(transport, "duplicate");
+    return;
+  }
+  if (chat?.type !== "private" || !user) {
+    metrics?.recordUpdate(transport, "ignored");
+    return;
+  }
 
-  handleGameInput(state, world, {
-    user, chatId: chat.id, command: update.message?.text, callback: callback?.data,
-  });
-  state.lastUpdateId = update.update_id;
-  if (webhook) state.recentWebhookUpdates = [...seen.slice(-255), update.update_id];
-  await store.save(state);
+  try {
+    handleGameInput(state, world, {
+      user, chatId: chat.id, command: update.message?.text, callback: callback?.data,
+    });
+    state.lastUpdateId = update.update_id;
+    if (webhook) state.recentWebhookUpdates = [...seen.slice(-255), update.update_id];
+    await store.save(state);
+    metrics?.recordUpdate(transport, "processed");
+  } catch (error) {
+    metrics?.recordUpdate(transport, "error");
+    throw error;
+  }
 }
 
 export async function deliverTelegramMessage(
   call: ReturnType<typeof telegramClient>, store: TomlStore, logger: FastifyBaseLogger,
+  metrics?: GameMetrics,
 ): Promise<boolean> {
   const state = store.snapshot();
   const delivery = state.outbox[0];
@@ -119,6 +138,7 @@ export async function deliverTelegramMessage(
       text: delivery.text,
       ...(delivery.keyboard.length ? { reply_markup: { inline_keyboard: delivery.keyboard } } : {}),
     });
+    if (delivery.queuedAt !== undefined) metrics?.recordDelivery(delivery.queuedAt);
   } catch (error) {
     if (!(error instanceof TelegramError) || ![400, 403].includes(error.status)) throw error;
     logger.warn({ chatId: delivery.chatId, status: error.status }, "Telegram could not deliver a game message");
@@ -132,6 +152,7 @@ export async function runTelegram(
   call: ReturnType<typeof telegramClient>, store: TomlStore, world: World,
   logger: FastifyBaseLogger, signal: AbortSignal,
   callbacks: { onUsername: (name: string) => void; onPolling: (ready: boolean) => void },
+  metrics?: GameMetrics,
 ) {
   let offset: number | undefined;
   let configured = false;
@@ -145,7 +166,7 @@ export async function runTelegram(
         logger.info("Telegram bot is ready");
       }
 
-      if (await deliverTelegramMessage(call, store, logger)) continue;
+      if (await deliverTelegramMessage(call, store, logger, metrics)) continue;
 
       const updates = await call<TelegramUpdate[]>("getUpdates", {
         offset,
@@ -160,7 +181,7 @@ export async function runTelegram(
         continue;
       }
 
-      await applyTelegramUpdate(call, store, world, update);
+      await applyTelegramUpdate(call, store, world, update, false, metrics);
       offset = update.update_id + 1;
     } catch (error) {
       if (signal.aborted) break;

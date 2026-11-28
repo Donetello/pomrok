@@ -1,0 +1,10 @@
+groups:
+  - name: pomrok-availability
+    rules:
+      - record: pomrok:probe_available
+        expr: |
+          (probe_success{job=~"pomrok-probes.*"} and on (job, instance) (up{job=~"pomrok-probes.*"} == 1))
+          unless on (probe) label_replace(
+            (vector(1) unless on () (last_over_time(pomrok_telegram_enabled[1h]) == 1)),
+            "probe", "bot_readiness", "__name__", ".*"
+          )

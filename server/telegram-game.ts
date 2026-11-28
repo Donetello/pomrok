@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Fight, Mode, World } from "../shared/game.ts";
 import { combatRules, roundLabel } from "../shared/uk.ts";
 import { fight, fightEncounter } from "./combat.ts";
+import { emptyGameTotals } from "./game-totals.ts";
 import type { Button, Player, State } from "./store.ts";
 
 export type TelegramUser = { id: number; first_name: string; username?: string };
@@ -38,23 +39,28 @@ function fightPages(result: Fight): string[] {
 
 export function handleGameInput(state: State, world: World, input: GameInput, now = Date.now()) {
   const say = (text: string, keyboard: Button[][] = menu, chatId = input.chatId) =>
-    state.outbox.push({ chatId, text, keyboard });
+    state.outbox.push({ chatId, text, keyboard, queuedAt: now });
   const rawCommand = input.command?.trim().split(/\s+/) ?? [];
   const command = rawCommand[0]?.split("@")[0]?.toLowerCase();
   const [action, value, detail] = input.callback?.split(":") ?? [];
   if (!input.callback && !command?.startsWith("/")) return;
 
-  state.challenges = state.challenges.filter((challenge) => challenge.expires > now);
+  const totals = state.gameTotals ??= emptyGameTotals();
+  const pending = state.challenges.filter((challenge) => challenge.expires > now);
+  totals.challenges.expired += state.challenges.length - pending.length;
+  state.challenges = pending;
   let player = state.players.find(({ id }) => id === input.user.id);
   if (!player) {
     player = {
       id: input.user.id, name: input.user.first_name, username: input.user.username ?? "",
       heroId: world.heroes[0].id, wins: 0, losses: 0, draws: 0,
+      createdAt: now,
     };
     state.players.push(player);
   }
   player.name = input.user.first_name;
   player.username = input.user.username ?? "";
+  player.lastActiveAt = now;
   const currentPlayer = player;
   const heroFor = (owner: Player) => world.heroes.find(({ id }) => id === owner.heroId) ?? world.heroes[0];
   const combatant = (owner: Player) => ({ ...heroFor(owner), name: label(owner) });
@@ -105,10 +111,13 @@ export function handleGameInput(state: State, world: World, input: GameInput, no
     }
     state.challenges = state.challenges.filter(({ id }) => id !== challenge.id);
     if (action === "decline") {
+      totals.challenges.declined++;
       say("Виклик відхилено.");
       say(`${label(currentPlayer)} відхиляє твій виклик.`, menu, challenger.id);
     } else {
       finish(fight(combatant(challenger), combatant(currentPlayer)), challenger, currentPlayer);
+      totals.challenges.accepted++;
+      totals.fights.pvp++;
     }
     return;
   }
@@ -126,7 +135,10 @@ export function handleGameInput(state: State, world: World, input: GameInput, no
   if (action === "dungeon" || action === "bot") {
     const encounter = world[action].find(({ id }) => id === value);
     if (!encounter) say("Ця пригода вже недоступна.");
-    else finish(fightEncounter(combatant(currentPlayer), encounter), currentPlayer);
+    else {
+      finish(fightEncounter(combatant(currentPlayer), encounter), currentPlayer);
+      totals.fights[action]++;
+    }
     return;
   }
 
@@ -157,6 +169,7 @@ export function handleGameInput(state: State, world: World, input: GameInput, no
       return;
     }
     state.challenges.push({ id, from: currentPlayer.id, to: target.id, expires: now + 86_400_000 });
+    totals.challenges.created++;
     say(`${label(currentPlayer)} кличе тебе на двобій. Маєш 24 години на відповідь.`,
       [[button("Прийняти", `accept:${id}`), button("Відхилити", `decline:${id}`)]], target.id);
     say(`Виклик для ${label(target)} надіслано.`);

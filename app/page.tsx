@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import type { Catalog } from "../shared/game";
+import { uptimeUserAgent } from "../shared/monitoring";
 import { combatRules } from "../shared/uk";
 import { gameApi } from "./game-api";
 import { Arena } from "./arena";
@@ -9,7 +11,8 @@ export const dynamic = "force-dynamic";
 export default async function Page() {
   let catalog: Catalog | undefined;
   try {
-    const response = await gameApi("/catalog");
+    const isUptimeProbe = (await headers()).get("user-agent") === uptimeUserAgent;
+    const response = await gameApi("/catalog", isUptimeProbe ? { headers: { "User-Agent": uptimeUserAgent } } : undefined);
     if (response.ok) catalog = await response.json();
   } catch {
     // The page can still explain how to reach the game while the API starts.
